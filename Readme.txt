@@ -1,1 +1,0 @@
-A bootstrap template for my personal website.
