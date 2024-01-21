@@ -137,14 +137,14 @@
 
         <h2>Enumeration</h2>
         <h3>Nmap</h3>
-        <p>With a simple Nmap scan, looks like there's FTP (21), SSH (22), and SMB (139 & 445).</p>
+        <p>With a simple Nmap scan, it looks like there's FTP (21), SSH (22), and SMB (139 & 445).</p>
         <pre><code>nmap 10.10.10.3 -Pn</code></pre>
         <img src="../images/lame1.png">
         <p>Knowing the ports, I further enumerated those ports using Nmap scripts, possibly showing the version of the services and other helpful information.</p>
         <pre><code>nmap 10.10.10.3. -Pn -sC -sV -p21,22,139,445</code></pre>
         <img src="../images/lame2.png">
         <h3>FTP - TCP 21</h3>
-        <p>From our Nmap scans, the FTP service is running VSFTPD version 2.3.4 and allows anonymous authentication. I logged into FTP but didn't find any files stored.</p>
+        <p>From our Nmap scans, the FTP service is running VSFTPD version 2.3.4 and allows anonymous authentication. I logged into FTP, but didn't find any files stored.</p>
         <pre><code>ftp 10.10.10.3</br>anonymous</br>anonymous</br>ls</code></pre>
         <img src="../images/lame3.png">
         <p>Searching the service version using searchsploit, there is a public exploit that uses Python or Metasploit. Before using this, I continued with my enumeration.</p>
