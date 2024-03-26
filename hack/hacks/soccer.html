@@ -155,6 +155,7 @@
         <p>Ports 22, 80, and 9091 are open. Let's use Nmap scripts to get more information from those ports.</p>
         <pre><code>nmap 10.10.11.194 -p22,80,9091 -sC -sV --min-rate=3000</code></pre>
         <img src="../images/soccer3.png">
+        <p>Port 22 is running OpenSSH 8.2p1, port 80 is running nginx 1.18.0, and port 9091 is something different. It is unclear what port 9091 could be. Let's first start with port 80.</p>
         <h3>Port 80 - TCP</h3>
         <p>Navigating to http://10.10.11.194, we encounter an error. This is because the website is redirecting us to http://soccer.htb, but our machine does not
             know the IP address of soccer.htb.</p>
